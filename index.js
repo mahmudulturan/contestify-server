@@ -28,14 +28,21 @@ async function run() {
     // await client.connect();
     const contestCollection = client.db("contestifyDB").collection("contests")
 
-    app.get('/contests', async(req, res)=> {
-        const result = await contestCollection.find().toArray();
-        res.send(result)
+    app.get('/contests', async (req, res) => {
+      const searchKey = req.query.tags;
+      let query = {};
+      if (searchKey) {
+        if(searchKey !== 'all'){
+          query.contest_type = new RegExp(searchKey.split("-").join(" "), 'i');
+        }
+      }
+      const result = await contestCollection.find(query).toArray();
+      res.send(result)
     })
 
-    app.get('/popular-contests', async(req, res)=> {
-        const result = await contestCollection.find().limit(6).sort("participate_count", 'desc').toArray();
-        res.send(result)
+    app.get('/popular-contests', async (req, res) => {
+      const result = await contestCollection.find().limit(6).sort("participate_count", 'desc').toArray();
+      res.send(result)
     })
 
     // Send a ping to confirm a successful connection
@@ -49,10 +56,10 @@ async function run() {
 run().catch(console.dir);
 
 
-app.get('/', (req, res)=>{
-    res.send('Contestify Server is running.....')
+app.get('/', (req, res) => {
+  res.send('Contestify Server is running.....')
 })
 
-app.listen(port, ()=> {
-    console.log(`Contesitfy server is running on port: ${port}`);
+app.listen(port, () => {
+  console.log(`Contesitfy server is running on port: ${port}`);
 })
