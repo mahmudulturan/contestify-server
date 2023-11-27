@@ -27,7 +27,22 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
     const contestCollection = client.db("contestifyDB").collection("contests")
+    const userCollection = client.db("contestifyDB").collection("users")
 
+    //users related api
+    app.put('/users', async(req, res)=>{
+      const usersData = req.body;
+      const email = req.body.email;
+      const query = {email : email}
+      const findUser = await userCollection.findOne(query)
+      if(findUser){
+        return res.send({status : "User Found"})
+      }
+      const result = await userCollection.insertOne(usersData);
+      res.send(result);
+    })
+
+    //contest related api
     app.get('/contests', async (req, res) => {
       const searchKey = req.query.tags;
       let query = {};
