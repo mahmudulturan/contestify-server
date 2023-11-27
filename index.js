@@ -30,24 +30,38 @@ async function run() {
     const userCollection = client.db("contestifyDB").collection("users")
 
     //users related api
-    app.put('/users', async(req, res)=>{
+    app.get('/users', async (req, res) => {
+      const result = await userCollection.find().toArray()
+      res.send(result)
+    })
+
+    app.get('/users/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id)}
+      const result = await userCollection.findOne(query)
+      res.send(result)
+    })
+
+    app.put('/users', async (req, res) => {
       const usersData = req.body;
       const email = req.body.email;
-      const query = {email : email}
+      const query = { email: email }
       const findUser = await userCollection.findOne(query)
-      if(findUser){
-        return res.send({status : "User Found"})
+      if (findUser) {
+        return res.send({ status: "User Found" })
       }
       const result = await userCollection.insertOne(usersData);
       res.send(result);
     })
+
+
 
     //contest related api
     app.get('/contests', async (req, res) => {
       const searchKey = req.query.tags;
       let query = {};
       if (searchKey) {
-        if(searchKey !== 'all'){
+        if (searchKey !== 'all') {
           query.contest_type = new RegExp(searchKey.split("-").join(" "), 'i');
         }
       }
@@ -66,9 +80,9 @@ async function run() {
     })
 
 
-    app.get('/contests/:id', async(req, res) => {
+    app.get('/contests/:id', async (req, res) => {
       const id = req.params.id;
-      const query = {_id : new ObjectId(id)}
+      const query = { _id: new ObjectId(id) }
       const result = await contestCollection.findOne(query)
       res.send(result)
     })
