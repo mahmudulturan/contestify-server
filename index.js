@@ -40,6 +40,17 @@ async function run() {
       res.send(result)
     })
 
+    app.get('/all-contests', async (req, res) => {
+      const reqEmail = req.query.email;
+      let query = {};
+      if (reqEmail) {
+        query['contest_creator.email'] = reqEmail;
+      }
+      const result = await contestCollection.find(query).toArray();
+      res.send(result)
+    })
+
+
     app.get('/contests/:id', async(req, res) => {
       const id = req.params.id;
       const query = {_id : new ObjectId(id)}
@@ -47,18 +58,20 @@ async function run() {
       res.send(result)
     })
 
-    app.post('/contests', async(req, res)=>{
-      const contestData = req.body;
-      const result = await contestCollection.insertOne(contestData);
-      res.send(result)
-    })
 
     app.get('/popular-contests', async (req, res) => {
       const result = await contestCollection.find().limit(6).sort("participate_count", 'desc').toArray();
       res.send(result)
     })
 
-  
+    app.post('/contests', async (req, res) => {
+      const contestData = req.body;
+      const result = await contestCollection.insertOne(contestData);
+      res.send(result)
+    })
+
+
+
 
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
