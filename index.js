@@ -2,7 +2,7 @@ const express = require('express');
 require("dotenv").config()
 const app = express();
 const cors = require('cors');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.port || 5000
 
 //middlewares
@@ -40,10 +40,20 @@ async function run() {
       res.send(result)
     })
 
+    app.get('/contests/:id', async(req, res) => {
+      const id = req.params.id;
+      const query = {_id : new ObjectId(id)}
+      const result = await contestCollection.findOne(query)
+      res.send(result)
+    })
+
+
     app.get('/popular-contests', async (req, res) => {
       const result = await contestCollection.find().limit(6).sort("participate_count", 'desc').toArray();
       res.send(result)
     })
+
+  
 
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
