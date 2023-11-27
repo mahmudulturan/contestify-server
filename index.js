@@ -47,6 +47,11 @@ async function run() {
       res.send(result)
     })
 
+    app.post('/contests', async(req, res)=>{
+      const contestData = req.body;
+      const result = await contestCollection.insertOne(contestData);
+      res.send(result)
+    })
 
     app.get('/popular-contests', async (req, res) => {
       const result = await contestCollection.find().limit(6).sort("participate_count", 'desc').toArray();
