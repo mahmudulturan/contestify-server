@@ -54,6 +54,26 @@ async function run() {
       res.send(result);
     })
 
+    app.patch('/users/:id', async (req, res) => {
+      const id = req.params.id;
+      const data = req.body;
+      const filter = { _id: new ObjectId(id) }
+      const updatedData = {
+        $set: {
+          role: data.role
+        }
+      }
+      const result = await userCollection.updateOne(filter, updatedData)
+      res.send(result);
+    })
+
+    app.delete('/users/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) }
+      const result = await userCollection.deleteOne(filter)
+      res.send(result);
+    })
+
 
 
     //contest related api
