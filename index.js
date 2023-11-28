@@ -35,9 +35,9 @@ async function run() {
       res.send(result)
     })
 
-    app.get('/users/:id', async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id)}
+    app.get('/users/:email', async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email }
       const result = await userCollection.findOne(query)
       res.send(result)
     })
@@ -57,11 +57,19 @@ async function run() {
     app.patch('/users/:id', async (req, res) => {
       const id = req.params.id;
       const data = req.body;
+      const role = data.role
+      const image = data.image
+      const name = data.name
       const filter = { _id: new ObjectId(id) }
-      const updatedData = {
-        $set: {
-          role: data.role
-        }
+      let updatedData = { $set: {} }
+      if (role) {
+        updatedData.$set.role = role;
+      }
+      if (image) {
+        updatedData.$set.image = image;
+      }
+      if (name) {
+        updatedData.$set.name = name;
       }
       const result = await userCollection.updateOne(filter, updatedData)
       res.send(result);
