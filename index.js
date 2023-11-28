@@ -131,14 +131,19 @@ async function run() {
     app.get('/is-participated/:email', async (req, res) => {
       const email = req.params.email;
       const contestID = req.query.contestID;
+      const sortBy = req.query.sortBy;
+      const sortMethod = {};
+      if(sortBy){
+        sortMethod.contest_deadline = 1
+      }
       const query = { ["participator.email"]: email };
       if(contestID){
         query.contest_id = contestID
       }
-      const isParticipated = await participateCollection.find(query).toArray()
+      const isParticipated = await participateCollection.find(query).sort(sortMethod).toArray()
       res.send(isParticipated)
     })
-    
+
     app.post('/participate-contest', async (req, res) => {
       const participateData = req.body;
       const result = await participateCollection.insertOne(participateData);
