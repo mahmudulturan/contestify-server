@@ -44,6 +44,21 @@ async function run() {
       res.send(result)
     })
 
+    app.get('/get-winners', async (req, res) => {
+      const email = req.query.email;
+      let query = {
+        $or: [
+          { 'winner': { $exists: true, $ne: null } },
+          { 'winner': 1 }
+        ]
+      };
+      if (email) {
+        query = { ['winner.email']: email }
+      }
+      const result = await contestCollection.find(query).toArray()
+      res.send(result)
+    })
+
     app.put('/users', async (req, res) => {
       const usersData = req.body;
       const email = req.body.email;
@@ -133,11 +148,11 @@ async function run() {
       const contestID = req.query.contestID;
       const sortBy = req.query.sortBy;
       const sortMethod = {};
-      if(sortBy){
+      if (sortBy) {
         sortMethod.contest_deadline = 1
       }
       const query = { ["participator.email"]: email };
-      if(contestID){
+      if (contestID) {
         query.contest_id = contestID
       }
       const isParticipated = await participateCollection.find(query).sort(sortMethod).toArray()
