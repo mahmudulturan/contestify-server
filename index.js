@@ -3,6 +3,7 @@ require("dotenv").config()
 const app = express();
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY)
 const port = process.env.port || 5000
 
 //middlewares
@@ -28,6 +29,7 @@ async function run() {
     // await client.connect();
     const contestCollection = client.db("contestifyDB").collection("contests")
     const userCollection = client.db("contestifyDB").collection("users")
+    const participateCollection = client.db("contestifyDB").collection("participators")
 
     //users related api
     app.get('/users', async (req, res) => {
@@ -83,7 +85,6 @@ async function run() {
     })
 
 
-
     //contest related api
     app.get('/contests', async (req, res) => {
       const searchKey = req.query.tags;
@@ -126,6 +127,41 @@ async function run() {
       const result = await contestCollection.insertOne(contestData);
       res.send(result)
     })
+
+    app.get('/is-participated/:email', async (req, res) => {
+      const email = req.params.email;
+      const contestID = req.query.contestID;
+      const query = { ["participator.email"]: email };
+      if(contestID){
+        query.contest_id = contestID
+      }
+      const isParticipated = await participateCollection.find(query).toArray()
+      res.send(isParticipated)
+    })
+    
+    app.post('/participate-contest', async (req, res) => {
+      const participateData = req.body;
+      const result = await participateCollection.insertOne(participateData);
+      res.send(result);
+    })
+
+
+    //payment intent
+    app.post('/create-payment-intent', async (req, res) => {
+      const { price } = req.body;
+      const orderAmout = price * 100;
+      if (orderAmout < 1) {
+        return res.send({ clientSecret: "" })
+      }
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: orderAmout,
+        currency: "usd",
+        payment_method_types: ["card"]
+      })
+      res.send({ clientSecret: paymentIntent.client_secret })
+    })
+
+
 
 
 
