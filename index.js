@@ -143,6 +143,52 @@ async function run() {
       res.send(result)
     })
 
+    app.put('/contests/:id', async (req, res) => {
+      const id = req.params.id;
+      const data = req.body;
+      const filter = { _id: new ObjectId(id) };
+      const updatedData = {
+        $set: {
+          name: data.name,
+          image: data.image,
+          description: data.description,
+          contest_price: data.contest_price,
+          prize_money: data.prize_money,
+          task_submission_instruction: data.task_submission_instruction,
+          status: data.status,
+          contest_type: data.contest_type,
+          contest_deadline: data.contest_deadline,
+          participate_count: data.participate_count,
+          contest_startDate: data.contest_startDate,
+          contest_creator: data.contest_creator
+        }
+      }
+      const options = { upsert: true };
+      const result = await contestCollection.updateOne(filter, updatedData, options);
+      res.send(result);
+    })
+
+    app.patch('/contests/:id', async (req, res) => {
+      const id = req.params.id;
+      const data = req.body;
+      const status = data.status;
+      const filter = { _id: new ObjectId(id) };
+      const updatedData = { $set: {} }
+      if (status) {
+        updatedData.$set.status = status;
+      }
+      const options = { upsert: true };
+      const result = await contestCollection.updateOne(filter, updatedData, options);
+      res.send(result);
+    })
+
+    app.delete('/contests/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await contestCollection.deleteOne(query)
+      res.send(result)
+    })
+
     app.get('/is-participated/:email', async (req, res) => {
       const email = req.params.email;
       const contestID = req.query.contestID;
