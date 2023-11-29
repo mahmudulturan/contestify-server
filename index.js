@@ -109,16 +109,21 @@ async function run() {
           query.contest_type = new RegExp(searchKey.split("-").join(" "), 'i');
         }
       }
+      query.status = "accepted";
       const result = await contestCollection.find(query).toArray();
       res.send(result)
     })
 
     app.get('/all-contests', async (req, res) => {
-      const reqEmail = req.query.email;
-      let query = {};
-      if (reqEmail) {
-        query['contest_creator.email'] = reqEmail;
-      }
+      const result = await contestCollection.find().toArray();
+      res.send(result)
+    })
+
+    app.get('/my-contests/:email', async (req, res) => {
+      const reqEmail = req.params.email;
+      const query = {
+        ['contest_creator.email']: reqEmail
+      };
       const result = await contestCollection.find(query).toArray();
       res.send(result)
     })
@@ -225,6 +230,19 @@ async function run() {
     app.post('/participate-contest', async (req, res) => {
       const participateData = req.body;
       const result = await participateCollection.insertOne(participateData);
+      res.send(result);
+    })
+
+    app.post('/participate-contest/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) }
+      const task = req.body.task;
+      const updatedData = {
+        $set: {
+          submitted_task: task
+        }
+      }
+      const result = await participateCollection.updateOne(filter, updatedData);
       res.send(result);
     })
 
