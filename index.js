@@ -182,6 +182,16 @@ async function run() {
       res.send(result);
     })
 
+    app.patch('/select-winner/:id', async (req, res) => {
+      const id = req.params.id;
+      const winnerData = req.body;
+      const filter = { _id: new ObjectId(id) };
+      const updatedData = { $set: { winner: winnerData } }
+      const options = { upsert: true };
+      const result = await contestCollection.updateOne(filter, updatedData, options);
+      res.send(result);
+    })
+
     app.delete('/contests/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) }
@@ -203,6 +213,13 @@ async function run() {
       }
       const isParticipated = await participateCollection.find(query).sort(sortMethod).toArray()
       res.send(isParticipated)
+    })
+
+    app.get('/total-submitted/:id', async (req, res) => {
+      const contestID = req.params.id;
+      const query = { contest_id: contestID };
+      const result = await participateCollection.find(query).toArray()
+      res.send(result)
     })
 
     app.post('/participate-contest', async (req, res) => {
