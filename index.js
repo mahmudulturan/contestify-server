@@ -63,6 +63,19 @@ async function run() {
       res.send(result)
     })
 
+    //endpoint for get user stats
+    app.get('/user-stats/:email', async(req, res)=>{
+      const email = req.params.email;
+      const contestQuery = {['winner.email']: email}
+      const participantQuery = {['participator.email'] : email}
+      const winningResult = await contestCollection.find(contestQuery).toArray()
+      const participantResult = await participateCollection.find(participantQuery).toArray()
+      const winningCount = winningResult.length;
+      const participantCount = participantResult.length;
+      const winningPercentage = ((winningCount/participantCount)*100).toFixed(2)
+      res.send({winningCount, participantCount, winningPercentage})
+    })
+
 
 
     //endpoint for insert or get exist message
@@ -264,7 +277,15 @@ async function run() {
     //endpoint for participate for an contest
     app.post('/participate-contest', async (req, res) => {
       const participateData = req.body;
+      const filter = {_id: new ObjectId(participateData.contest_id)}
+      const find = await contestCollection.findOne(filter)
+      const updatedData = {
+        $set: {
+          participate_count: find.participate_count + 1
+        }
+      }
       const result = await participateCollection.insertOne(participateData);
+      await contestCollection.updateOne(filter, updatedData)
       res.send(result);
     })
 
