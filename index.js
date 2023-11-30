@@ -10,7 +10,11 @@ const port = process.env.port || 5000
 
 //middlewares
 app.use(cors({
-  origin: ["http://localhost:5173"],
+  origin: [
+    // "http://localhost:5173",
+    "https://thecontestify.firebaseapp.com",
+    "https://thecontestify.web.app"
+  ],
   credentials: true
 }))
 app.use(express.json())
@@ -59,12 +63,12 @@ async function run() {
     app.post('/jwt', async (req, res) => {
       const email = req.body;
       const token = jwt.sign(email, process.env.TOKEN_SECRET, { expiresIn: "1h" })
-      res.cookie("token", token, { httpOnly: true, secure: false }).send({ success: true })
+      res.cookie("token", token, { httpOnly: true, secure: true, sameSite: 'none' }).send({ success: true })
     })
 
     //clear token
-    app.post('/clear-cookie', async (req, res) => {
-      res.clearCookie('token', { maxAge: 0 }).send({ message: 'success'})
+    app.delete('/clear-cookie', async (req, res) => {
+      res.clearCookie('token', { maxAge: 0, httpOnly: true, secure: true, sameSite: 'none'  }).send({ message: 'success' })
     })
 
 
