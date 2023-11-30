@@ -4,11 +4,34 @@ const app = express();
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY)
+const jwt = require("jsonwebtoken");
+const cookieParser = require('cookie-parser')
 const port = process.env.port || 5000
 
 //middlewares
-app.use(cors())
+app.use(cors({
+  origin: ["http://localhost:5173"],
+  credentials: true
+}))
 app.use(express.json())
+app.use(cookieParser())
+
+
+//custom middlewares
+const verifyToken = async (req, res, next) => {
+  const token = req.cookies?.token
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" })
+  }
+  jwt.verify(token, process.env.TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(403).send({ message: "unauthorized access" })
+    }
+    req.user = decoded
+    next()
+  })
+}
+
 
 
 
@@ -31,17 +54,34 @@ async function run() {
     const userCollection = client.db("contestifyDB").collection("users")
     const participateCollection = client.db("contestifyDB").collection("participators")
 
+
+    //get token
+    app.post('/jwt', async (req, res) => {
+      const email = req.body;
+      const token = jwt.sign(email, process.env.TOKEN_SECRET, { expiresIn: "1h" })
+      res.cookie("token", token, { httpOnly: true, secure: false }).send({ success: true })
+    })
+
+    //clear token
+    app.post('/clear-cookie', async (req, res) => {
+      res.clearCookie('token', { maxAge: 0 }).send({ message: 'success'})
+    })
+
+
     //users related api
 
     //endpoint for get all users
-    app.get('/users', async (req, res) => {
+    app.get('/users', verifyToken, async (req, res) => {
       const result = await userCollection.find().toArray()
       res.send(result)
     })
 
     //endpoint for get single users
-    app.get('/users/:email', async (req, res) => {
+    app.get('/users/:email', verifyToken, async (req, res) => {
       const email = req.params.email;
+      if (req?.user?.email !== email) {
+        return res.status(403).send({ message: "unauthorized access" })
+      }
       const query = { email: email }
       const result = await userCollection.findOne(query)
       res.send(result)
@@ -64,16 +104,19 @@ async function run() {
     })
 
     //endpoint for get user stats
-    app.get('/user-stats/:email', async(req, res)=>{
+    app.get('/user-stats/:email', verifyToken, async (req, res) => {
       const email = req.params.email;
-      const contestQuery = {['winner.email']: email}
-      const participantQuery = {['participator.email'] : email}
+      if (req?.user?.email !== email) {
+        return res.status(403).send({ message: "unauthorized access" })
+      }
+      const contestQuery = { ['winner.email']: email }
+      const participantQuery = { ['participator.email']: email }
       const winningResult = await contestCollection.find(contestQuery).toArray()
       const participantResult = await participateCollection.find(participantQuery).toArray()
       const winningCount = winningResult.length;
       const participantCount = participantResult.length;
-      const winningPercentage = ((winningCount/participantCount)*100).toFixed(2)
-      res.send({winningCount, participantCount, winningPercentage})
+      const winningPercentage = ((winningCount / participantCount) * 100).toFixed(2)
+      res.send({ winningCount, participantCount, winningPercentage })
     })
 
 
@@ -93,7 +136,7 @@ async function run() {
 
 
     //endpoint for change user's role
-    app.patch('/change-role/:id', async (req, res) => {
+    app.patch('/change-role/:id', verifyToken, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) }
       const role = req.body.role
@@ -107,12 +150,15 @@ async function run() {
     })
 
     //endpoint for change users name and image
-    app.patch('/users/:id', async (req, res) => {
-      const id = req.params.id;
+    app.patch('/users/:email', verifyToken, async (req, res) => {
+      const email = req.params.email;
+      if (req?.user?.email !== email) {
+        return res.status(403).send({ message: "unauthorized access" })
+      }
       const data = req.body;
       const image = data.image
       const name = data.name
-      const filter = { _id: new ObjectId(id) }
+      const filter = { email: email }
       let updatedData = { $set: {} }
       if (image) {
         updatedData.$set.image = image;
@@ -125,7 +171,7 @@ async function run() {
     })
 
     //endpoint for delete an user from db
-    app.delete('/users/:id', async (req, res) => {
+    app.delete('/users/:id', verifyToken, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) }
       const result = await userCollection.deleteOne(filter)
@@ -138,7 +184,7 @@ async function run() {
     //endpoint for get all public contests
     app.get('/contests', async (req, res) => {
       const searchKey = req.query.tags;
-      let query = { status : "accepted"};
+      let query = { status: "accepted" };
       if (searchKey) {
         if (searchKey !== 'all') {
           query.contest_type = new RegExp(searchKey.split("-").join(" "), 'i');
@@ -151,14 +197,17 @@ async function run() {
 
 
     //endpoint for get all contests
-    app.get('/all-contests', async (req, res) => {
+    app.get('/all-contests', verifyToken, async (req, res) => {
       const result = await contestCollection.find().toArray();
       res.send(result)
     })
 
     //endpoint for get creators own added contests
-    app.get('/my-contests/:email', async (req, res) => {
+    app.get('/my-contests/:email', verifyToken, async (req, res) => {
       const reqEmail = req.params.email;
+      if (req?.user?.email !== reqEmail) {
+        return res.status(403).send({ message: "unauthorized access" })
+      }
       const query = {
         ['contest_creator.email']: reqEmail
       };
@@ -167,7 +216,7 @@ async function run() {
     })
 
     //endpoint for get single contest data
-    app.get('/contests/:id', async (req, res) => {
+    app.get('/contests/:id', verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) }
       const result = await contestCollection.findOne(query)
@@ -182,14 +231,14 @@ async function run() {
     })
 
     //endpoint for post a new contest
-    app.post('/contests', async (req, res) => {
+    app.post('/contests', verifyToken, async (req, res) => {
       const contestData = req.body;
       const result = await contestCollection.insertOne(contestData);
       res.send(result)
     })
 
     //endpoint for update an contest
-    app.put('/contests/:id', async (req, res) => {
+    app.put('/contests/:id', verifyToken, async (req, res) => {
       const id = req.params.id;
       const data = req.body;
       const filter = { _id: new ObjectId(id) };
@@ -215,7 +264,7 @@ async function run() {
     })
 
     //endpoint for update contest status
-    app.patch('/contests/:id', async (req, res) => {
+    app.patch('/contests/:id', verifyToken, async (req, res) => {
       const id = req.params.id;
       const data = req.body;
       const status = data.status;
@@ -230,7 +279,7 @@ async function run() {
     })
 
     //endpoint for select an winner
-    app.patch('/select-winner/:id', async (req, res) => {
+    app.patch('/select-winner/:id', verifyToken, async (req, res) => {
       const id = req.params.id;
       const winnerData = req.body;
       const filter = { _id: new ObjectId(id) };
@@ -241,7 +290,7 @@ async function run() {
     })
 
     //endpoint for delete an contest
-    app.delete('/contests/:id', async (req, res) => {
+    app.delete('/contests/:id', verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) }
       const result = await contestCollection.deleteOne(query)
@@ -249,8 +298,11 @@ async function run() {
     })
 
     //endpoint for get users own participated data.
-    app.get('/is-participated/:email', async (req, res) => {
+    app.get('/is-participated/:email', verifyToken, async (req, res) => {
       const email = req.params.email;
+      if (req?.user?.email !== email) {
+        return res.status(403).send({ message: "unauthorized access" })
+      }
       const contestID = req.query.contestID;
       const sortBy = req.query.sortBy;
       const sortMethod = {};
@@ -267,7 +319,7 @@ async function run() {
 
 
     //endpoint for get total submission for each contest
-    app.get('/total-submitted/:id', async (req, res) => {
+    app.get('/total-submitted/:id', verifyToken, async (req, res) => {
       const contestID = req.params.id;
       const query = { contest_id: contestID };
       const result = await participateCollection.find(query).toArray()
@@ -275,9 +327,9 @@ async function run() {
     })
 
     //endpoint for participate for an contest
-    app.post('/participate-contest', async (req, res) => {
+    app.post('/participate-contest', verifyToken, async (req, res) => {
       const participateData = req.body;
-      const filter = {_id: new ObjectId(participateData.contest_id)}
+      const filter = { _id: new ObjectId(participateData.contest_id) }
       const find = await contestCollection.findOne(filter)
       const updatedData = {
         $set: {
@@ -290,7 +342,7 @@ async function run() {
     })
 
     //endpoint for submit participant task
-    app.post('/participate-contest/:id', async (req, res) => {
+    app.post('/participate-contest/:id', verifyToken, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) }
       const task = req.body.task;
@@ -305,7 +357,7 @@ async function run() {
 
 
     //payment intent
-    app.post('/create-payment-intent', async (req, res) => {
+    app.post('/create-payment-intent', verifyToken, async (req, res) => {
       const { price } = req.body;
       const orderAmout = price * 100;
       if (orderAmout < 1) {
